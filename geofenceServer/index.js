@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 
 // Connect to MongoDB
-mongoose.connect('mongodb://127.0.0.1:27017/traccar')
+mongoose.connect('mongodb+srv://kushal:kushal23@cluster0.hev1b.mongodb.net/traccar?retryWrites=true&w=majority&appName=Cluster0/traccar')
 .then(() => console.log('Connected to MongoDB'))
 .catch(err => console.error('Could not connect to MongoDB:', err));
 
