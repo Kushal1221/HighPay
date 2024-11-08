@@ -1,9 +1,11 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
+const mongoUri = process.env.MONGODB_URI;
 
 // Connect to MongoDB
-mongoose.connect('mongodb+srv://kushal:kushal23@cluster0.hev1b.mongodb.net/traccar?retryWrites=true&w=majority&appName=Cluster0/traccar')
+mongoose.connect(mongoUri)
 .then(() => console.log('Connected to MongoDB'))
 .catch(err => console.error('Could not connect to MongoDB:', err));
 
