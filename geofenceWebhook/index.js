@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const mongoUri = process.env.MONGODB_URI;
+const mongoUri = "mongodb+srv://kushal:kushal23@cluster0.hev1b.mongodb.net/traccar?retryWrites=true&w=majority&appName=Cluster0/traccar$raccar";
 
 // Connect to MongoDB
 mongoose.connect(mongoUri)
@@ -37,22 +37,30 @@ const latestEntries = {};
 // Endpoint to receive geofence notifications from Traccar
 app.post('/geofence', async (req, res) => {
     try {
-        const { deviceId, event, geofenceId, latitude, longitude, timestamp } = req.body;
+        const { event, position, device, geofence } = req.body;
 
-        if (event === 'geofenceEnter') {
+        const { type, eventTime } = event;
+        const { id: deviceId } = device;
+        const { id: geofenceId } = geofence;
+
+        const latitude = position.latitude;
+        const longitude = position.longitude;
+        const timestamp = new Date(eventTime);
+
+        if (type === 'geofenceEnter') {
             // Store entry event data temporarily for this device
             latestEntries[deviceId] = {
                 latitude,
                 longitude,
-                timestamp: new Date(timestamp)
+                timestamp
             };
             console.log(`Entry recorded for device ${deviceId}`);
             res.status(200).json({ message: 'Geofence entry recorded' });
 
-        } else if (event === 'geofenceExit') {
+        } else if (type === 'geofenceExit') {
             // Check if an entry exists for this device
             const entryData = latestEntries[deviceId];
-            
+
             if (!entryData) {
                 // If no entry data, exit event cannot be paired, return an error
                 return res.status(400).json({ message: 'No entry event found for this device' });
@@ -66,7 +74,7 @@ app.post('/geofence', async (req, res) => {
                 exit: {
                     latitude,
                     longitude,
-                    timestamp: new Date(timestamp)
+                    timestamp
                 }
             });
 
