@@ -2,15 +2,58 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const axios = require('axios');  // For calling Google Maps API
+const axios = require('axios');
 const mongoUri = process.env.MONGODB_URI;
-
-const googleMapsApiKey = process.env.GOOGLE_MAPS_API_KEY;  // Google Maps API key
+const hereApiKey = process.env.DISTANCE_API_KEY;
 
 // Connect to MongoDB
 mongoose.connect(mongoUri)
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('Could not connect to MongoDB:', err));
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('Could not connect to MongoDB:', err));
+
+// Helper function to convert a Date object to IST and split date/time
+function convertToIST(date) {
+    const istOffset = 5.5 * 60 * 60 * 1000; // IST offset in milliseconds
+    const istDate = new Date(date.getTime() + istOffset);
+
+    // Extract individual date components
+    const day = String(istDate.getDate()).padStart(2, '0'); // Add leading zero if needed
+    const month = String(istDate.getMonth() + 1).padStart(2, '0'); // Months are 0-based
+    const year = istDate.getFullYear();
+
+    // Format the date as dd-mm-yyyy
+    const formattedDate = `${day}-${month}-${year}`;
+
+    const timePart = istDate.toISOString().split('T')[1].split('.')[0]; // Extract time (HH:mm:ss)
+
+    return { date: formattedDate, time: timePart };
+}
+
+
+// Helper function to calculate distance using HERE API
+async function calculateDistance(entryCoordinates, exitCoordinates) {
+    const origin = `${entryCoordinates.latitude},${entryCoordinates.longitude}`;
+    const destination = `${exitCoordinates.latitude},${exitCoordinates.longitude}`;
+
+    try {
+        const response = await axios.get('https://router.hereapi.com/v8/routes', {
+            params: {
+                apiKey: hereApiKey,
+                origin,
+                destination,
+                return: 'summary',
+                routingMode: 'fast',
+                transportMode: 'car' 
+            }
+        });
+
+        const distance = response.data.routes[0].sections[0].summary.length; // Distance in meters
+        return distance;
+    } catch (error) {
+        console.error('Error fetching distance from HERE API:', error);
+        return null; // Return null if error occurs
+    }
+}
 
 // Define schema for geofence log
 const geofenceLogSchema = new mongoose.Schema({
@@ -19,12 +62,16 @@ const geofenceLogSchema = new mongoose.Schema({
     entry: {
         latitude: Number,
         longitude: Number,
-        timestamp: Date
+        timestamp: Date,
+        date: String,
+        time: String
     },
     exit: {
         latitude: Number,
         longitude: Number,
-        timestamp: Date
+        timestamp: Date,
+        date: String,
+        time: String
     },
     distance: Number // Field to store distance
 });
@@ -38,44 +85,35 @@ app.use(bodyParser.json());
 // Temporary storage for latest entry events
 const latestEntries = {};
 
-// Helper function to calculate distance using Google Maps API
-async function calculateDistance(entryCoordinates, exitCoordinates) {
-    const origin = `${entryCoordinates.latitude},${entryCoordinates.longitude}`;
-    const destination = `${exitCoordinates.latitude},${exitCoordinates.longitude}`;
-    
-    try {
-        const response = await axios.get('https://maps.googleapis.com/maps/api/distancematrix/json', {
-            params: {
-                origins: origin,
-                destinations: destination,
-                key: googleMapsApiKey
-            }
-        });
-        
-        const distance = response.data.rows[0].elements[0].distance.value;  // distance in meters
-        return distance;
-    } catch (error) {
-        console.error('Error fetching distance from Google Maps API:', error);
-        return null;  // Return null if error occurs
-    }
-}
-
 // Endpoint to receive geofence notifications from Traccar
 app.post('/geofence', async (req, res) => {
     try {
-        const { deviceId, event, geofenceId, latitude, longitude, timestamp } = req.body;
+        const { event, position, device, geofence } = req.body;
 
-        if (event === 'geofenceEnter') {
+        const { type } = event;
+        const { id: deviceId } = device;
+        const { id: geofenceId } = geofence;
+
+        const latitude = position.latitude;
+        const longitude = position.longitude;
+        const timestamp = new Date();
+
+        // Convert timestamp to IST and separate date/time
+        const { date, time } = convertToIST(timestamp);
+
+        if (type === 'geofenceEnter') {
             // Store entry event data temporarily for this device
             latestEntries[deviceId] = {
                 latitude,
                 longitude,
-                timestamp: new Date(timestamp)
+                timestamp,
+                date,
+                time
             };
             console.log(`Entry recorded for device ${deviceId}`);
             res.status(200).json({ message: 'Geofence entry recorded' });
 
-        } else if (event === 'geofenceExit') {
+        } else if (type === 'geofenceExit') {
             // Check if an entry exists for this device
             const entryData = latestEntries[deviceId];
 
@@ -84,40 +122,35 @@ app.post('/geofence', async (req, res) => {
                 return res.status(400).json({ message: 'No entry event found for this device' });
             }
 
-            // Calculate distance between entry and exit locations using Google Maps API
+            // Calculate distance between entry and exit locations using HERE API
             const distance = await calculateDistance(entryData, { latitude, longitude });
 
             if (distance === null) {
                 return res.status(500).json({ message: 'Failed to calculate distance' });
             }
 
-            // Only store if distance is greater than 20 km (20,000 meters)
-            if (distance > 20000) {
-                // Save both entry and exit in a single document with distance
-                const geofenceLog = new GeofenceLog({
-                    deviceId,
-                    geofenceId,
-                    entry: entryData,
-                    exit: {
-                        latitude,
-                        longitude,
-                        timestamp: new Date(timestamp)
-                    },
-                    distance: distance  // Store calculated distance
-                });
+            // Save both entry and exit in a single document with distance
+            const geofenceLog = new GeofenceLog({
+                deviceId,
+                geofenceId,
+                entry: entryData,
+                exit: {
+                    latitude,
+                    longitude,
+                    timestamp,
+                    date,
+                    time
+                },
+                distance: distance/1000 // Store calculated distance
+            });
 
-                await geofenceLog.save();
+            await geofenceLog.save();
 
-                // Clear the entry data after saving
-                delete latestEntries[deviceId];
+            // Clear the entry data after saving
+            delete latestEntries[deviceId];
 
-                console.log(`Entry/Exit log saved for device ${deviceId}`);
-                res.status(200).json({ message: 'Geofence entry/exit event logged successfully' });
-            } else {
-                // If the distance is not greater than 20 km, ignore the event
-                console.log(`Distance too short to save: ${distance / 1000} km`);
-                res.status(200).json({ message: 'Distance too short to store in database' });
-            }
+            console.log(`Entry/Exit log saved for device ${deviceId} with distance: ${distance / 1000} km`);
+            res.status(200).json({ message: 'Geofence entry/exit event logged successfully' });
 
         } else {
             res.status(400).json({ message: 'Invalid event type' });

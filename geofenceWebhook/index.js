@@ -6,8 +6,18 @@ const mongoUri = process.env.MONGODB_URI;
 
 // Connect to MongoDB
 mongoose.connect(mongoUri)
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('Could not connect to MongoDB:', err));
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('Could not connect to MongoDB:', err));
+
+// Helper function to convert a Date object to IST and split date/time
+function convertToIST(date) {
+    const istOffset = 5.5 * 60 * 60 * 1000; // IST offset in milliseconds
+    const istDate = new Date(date.getTime() + istOffset);
+
+    const datePart = istDate.toISOString().split('T')[0]; // Extract date (YYYY-MM-DD)
+    const timePart = istDate.toISOString().split('T')[1].split('.')[0]; // Extract time (HH:mm:ss)
+    return { date: datePart, time: timePart };
+}
 
 // Define a schema for combined geofence entry and exit events
 const geofenceLogSchema = new mongoose.Schema({
@@ -16,12 +26,16 @@ const geofenceLogSchema = new mongoose.Schema({
     entry: {
         latitude: Number,
         longitude: Number,
-        timestamp: Date
+        timestamp: Date,
+        date: String,
+        time: String
     },
     exit: {
         latitude: Number,
         longitude: Number,
-        timestamp: Date
+        timestamp: Date,
+        date: String,
+        time: String
     }
 });
 
@@ -39,20 +53,25 @@ app.post('/geofence', async (req, res) => {
     try {
         const { event, position, device, geofence } = req.body;
 
-        const { type, eventTime } = event;
+        const { type } = event;
         const { id: deviceId } = device;
         const { id: geofenceId } = geofence;
 
         const latitude = position.latitude;
         const longitude = position.longitude;
-        const timestamp = new Date(eventTime);
+        const timestamp = new Date();
+
+        // Convert timestamp to IST and separate date/time
+        const { date, time } = convertToIST(timestamp);
 
         if (type === 'geofenceEnter') {
             // Store entry event data temporarily for this device
             latestEntries[deviceId] = {
                 latitude,
                 longitude,
-                timestamp
+                timestamp,
+                date,
+                time
             };
             console.log(`Entry recorded for device ${deviceId}`);
             res.status(200).json({ message: 'Geofence entry recorded' });
@@ -66,16 +85,21 @@ app.post('/geofence', async (req, res) => {
                 return res.status(400).json({ message: 'No entry event found for this device' });
             }
 
+            // Convert exit timestamp to IST and separate date/time
+            const exitData = {
+                latitude,
+                longitude,
+                timestamp,
+                date,
+                time
+            };
+
             // Save both entry and exit in a single document
             const geofenceLog = new GeofenceLog({
                 deviceId,
                 geofenceId,
                 entry: entryData,
-                exit: {
-                    latitude,
-                    longitude,
-                    timestamp
-                }
+                exit: exitData
             });
 
             await geofenceLog.save();
