@@ -1,0 +1,25 @@
+.redirectlogin{
+    font-family: "Poppins", serif;
+    display: flex;
+    flex-direction : column;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    color: white;
+    min-height: 100vh;
+    background: url('./Components/Assets/highway.jpg') no-repeat;
+    background-size: cover;
+    background-position: center;
+}
+
+.redirectlogin button{
+    padding: 10px 15px;
+    background: #fff;
+    border: none;
+    outline: none;
+    border-radius: 40px;
+    cursor: pointer;
+    font-size: 16px;
+    color: #333;
+    font-weight: 700;
+}

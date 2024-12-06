@@ -1,0 +1,120 @@
+.container {
+    font-family: "Poppins", serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: url('./Components/Assets/highway.jpg') no-repeat;
+    background-size: cover;
+    background-position: center;
+}
+
+.register-wrapper {
+    position: relative;
+    width: 420px;
+    height: 550px;
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, .1);
+    backdrop-filter: blur(30px);
+    box-shadow: 0 0 10px rgba(0, 0, 0, .2);
+    border-radius: 10px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content : center;   
+    overflow: hidden;
+}
+
+.wrapper.active {
+    height: 520px;
+}
+
+.form-box {
+    width: 80%;
+}
+
+
+form h1 {
+    margin-top : 2rem;
+    font-size: 30px;
+    text-align: center;
+}
+
+form .input-box {
+    position: relative;
+    width: 100%;
+    height: 40px;
+    margin: 30px 0;
+}
+
+.input-box input {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    border: 2px solid rgba(255, 255, 255, .1);
+    border-radius: 40px;
+    font-size: 13px;
+    color: #fff;
+    padding: 20px 45px 20px 20px;
+}
+
+.input-box input::placeholder {
+    color: #fff;
+}
+
+.input-box .icon {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    translate: 0 -50%;
+    font-size: 13px;
+}
+
+form button {
+    width: 100%;
+    height: 35px;
+    background: #fff;
+    border: none;
+    outline: none;
+    border-radius: 40px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, .1);
+    cursor: pointer;
+    font-size: 16px;
+    color: #333;
+    font-weight: 700;
+}
+
+form .login-link {
+    font-size: 14px;
+    text-align: center;
+    margin: 15px 0 50px;
+}
+
+.login-link p a {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.login-link p a:hover {
+    text-decoration: underline;
+}
+
+.error-message{
+    font-size: 13px;
+    color : red;
+    font-weight: 900;
+    text-align: center;
+    margin-top : 10px;
+}
+.input-password i{
+    position : absolute;
+    right: 20px;
+    top: 14px;
+}
+
+.input-password i:hover{
+    cursor:pointer;
+}

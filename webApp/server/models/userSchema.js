@@ -5,17 +5,17 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    phoneNumber: {
+    phonenumber: {
         type: Number,
         required: true,
         unique: true
     },
-    numberPlate: {
+    numberplate: {
         type: String,
         required: true,
         unique: true
     },
-    deviceId: {
+    deviceid: {
         type: Number,
         required: true,
         unique: true
