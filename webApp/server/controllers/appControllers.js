@@ -1,5 +1,7 @@
 const User = require("../models/userSchema")
 const bcrypt = require('bcryptjs');
+const mongoose = require("mongoose");
+const {generateToken} = require("../controllers/jwt");
 
 const register = async (req,res) => {
     try {
@@ -32,6 +34,7 @@ const register = async (req,res) => {
         });
     
         await newUser.save();
+        
 
         res.status(201).json({ message: "User registered successfully" });
     
@@ -44,7 +47,7 @@ const register = async (req,res) => {
 }
 
 const login = async (req,res) => {
-    const {numberplate, password} = req.query;
+    const {numberplate, password} = req.body;
     const user = await User.findOne({numberplate});
     
     if(user){
@@ -52,7 +55,12 @@ const login = async (req,res) => {
       const isPasswordValid = await bcrypt.compare(password, user.password);
 
         if(isPasswordValid){
-            res.status(200).json({message:"User logged in successfully"});
+          const payload = {
+            id: user.id,
+          }
+          const token = generateToken(payload);
+          return res.status(200).json({ message: "User logged in successfully", token });
+
         }else{
             res.status(400).json({message:"Invalid password"});
         }
@@ -61,4 +69,25 @@ const login = async (req,res) => {
     }
 }
 
-module.exports = {register,login}
+const home = async (req,res) => {
+  try {
+      const userId = req.user.id;  
+      const userData = await User.findById(userId);  
+
+      if (!userData) {
+          return res.status(404).json({ message: "User not found" });
+      }
+
+      const geofenceLogs = await mongoose.connection.db.collection("geofencelogs");
+
+      const trips = await geofenceLogs.find({ deviceId: userData.deviceid }).toArray();
+
+
+      res.status(200).json({ userData, trips });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error fetching user data", error: error.message });
+    }
+}
+
+module.exports = {register,login,home}

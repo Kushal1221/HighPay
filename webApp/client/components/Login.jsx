@@ -16,11 +16,12 @@ const Login = () => {
   const handleLogin = (e) => {
     e.preventDefault();
     const formattedNumberplate = numberplate.toUpperCase();
-    axios.get("http://localhost:5000/login", {
-      params: { numberplate: formattedNumberplate, password },
+    axios.post("http://localhost:5000/login", {
+        numberplate: formattedNumberplate, 
+        password
       })
       .then((result) => {
-        console.log(result);
+        localStorage.setItem("accessToken", result.data.token);
         navigate("/"); 
       })
       .catch((err) => {
