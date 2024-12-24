@@ -1,0 +1,89 @@
+.home{
+    display: flex;
+    justify-content: center;
+}
+
+.homeContainer{
+    width: 900px;
+}
+
+.homeHeader{
+    display: flex;
+    justify-content: space-between;
+    padding: 20px 20px;
+}
+
+.highpayLogo {
+    max-width: 100px;
+    height: 100px;
+    border-radius: 50%;
+}
+
+.highpayLogo:hover{
+    cursor: pointer;
+}
+
+.userHeader{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.userLogo{
+    max-width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background-color: transparent; 
+    overflow: hidden; 
+}
+  
+.logoutBtn button {
+    margin-top: 10px;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+  
+.logoutBtn button:hover {
+    background-color: #0056b3;
+}
+
+
+.tripCard{
+    border: 5px solid black;
+    border-radius: 20px;
+    margin-top: 20px;
+}
+
+.tripDetails{
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.payment{
+    text-align: center;
+    padding: 10px 10px;
+    border-bottom-left-radius: 17px;
+    border-bottom-right-radius: 17px;
+    background-color: #007bff;
+    color: white;
+}
+
+.payment:hover{
+    cursor: pointer;
+}
+
+.alignment{
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.distance h4{
+    text-align: center;
+}

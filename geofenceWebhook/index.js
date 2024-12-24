@@ -2,7 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
+const axios = require('axios');
 const mongoUri = process.env.MONGODB_URI;
+const hereApiKey = process.env.DISTANCE_API_KEY;
 
 // Connect to MongoDB
 mongoose.connect(mongoUri)
@@ -14,12 +16,46 @@ function convertToIST(date) {
     const istOffset = 5.5 * 60 * 60 * 1000; // IST offset in milliseconds
     const istDate = new Date(date.getTime() + istOffset);
 
-    const datePart = istDate.toISOString().split('T')[0]; // Extract date (YYYY-MM-DD)
+    // Extract individual date components
+    const day = String(istDate.getDate()).padStart(2, '0'); // Add leading zero if needed
+    const month = String(istDate.getMonth() + 1).padStart(2, '0'); // Months are 0-based
+    const year = istDate.getFullYear();
+
+    // Format the date as dd-mm-yyyy
+    const formattedDate = `${day}-${month}-${year}`;
+
     const timePart = istDate.toISOString().split('T')[1].split('.')[0]; // Extract time (HH:mm:ss)
-    return { date: datePart, time: timePart };
+
+    return { date: formattedDate, time: timePart };
 }
 
-// Define a schema for combined geofence entry and exit events
+
+// Helper function to calculate distance using HERE API
+async function calculateDistance(entryCoordinates, exitCoordinates) {
+    const origin = `${entryCoordinates.latitude},${entryCoordinates.longitude}`;
+    const destination = `${exitCoordinates.latitude},${exitCoordinates.longitude}`;
+
+    try {
+        const response = await axios.get('https://router.hereapi.com/v8/routes', {
+            params: {
+                apiKey: hereApiKey,
+                origin,
+                destination,
+                return: 'summary',
+                routingMode: 'fast',
+                transportMode: 'car' 
+            }
+        });
+
+        const distance = response.data.routes[0].sections[0].summary.length; // Distance in meters
+        return distance;
+    } catch (error) {
+        console.error('Error fetching distance from HERE API:', error);
+        return null; // Return null if error occurs
+    }
+}
+
+// Define schema for geofence log
 const geofenceLogSchema = new mongoose.Schema({
     deviceId: Number,
     geofenceId: Number,
@@ -36,7 +72,9 @@ const geofenceLogSchema = new mongoose.Schema({
         timestamp: Date,
         date: String,
         time: String
-    }
+    },
+    distance: Number,
+    price: Number 
 });
 
 // Create a model from the schema
@@ -45,7 +83,7 @@ const GeofenceLog = mongoose.model('GeofenceLog', geofenceLogSchema);
 const app = express();
 app.use(bodyParser.json());
 
-// Temporary storage to keep track of the latest entry events
+// Temporary storage for latest entry events
 const latestEntries = {};
 
 // Endpoint to receive geofence notifications from Traccar
@@ -85,21 +123,30 @@ app.post('/geofence', async (req, res) => {
                 return res.status(400).json({ message: 'No entry event found for this device' });
             }
 
-            // Convert exit timestamp to IST and separate date/time
-            const exitData = {
-                latitude,
-                longitude,
-                timestamp,
-                date,
-                time
-            };
+            // Calculate distance between entry and exit locations using HERE API
+            let distance = await calculateDistance(entryData, { latitude, longitude });
+            distance = distance/1000;
 
-            // Save both entry and exit in a single document
+            if (distance === null) {
+                return res.status(500).json({ message: 'Failed to calculate distance' });
+            }
+
+            const price = parseFloat((distance * 1.05).toFixed(2));
+
+            // Save both entry and exit in a single document with distance
             const geofenceLog = new GeofenceLog({
                 deviceId,
                 geofenceId,
                 entry: entryData,
-                exit: exitData
+                exit: {
+                    latitude,
+                    longitude,
+                    timestamp,
+                    date,
+                    time
+                },
+                distance,
+                price
             });
 
             await geofenceLog.save();
@@ -107,7 +154,7 @@ app.post('/geofence', async (req, res) => {
             // Clear the entry data after saving
             delete latestEntries[deviceId];
 
-            console.log(`Entry/Exit log saved for device ${deviceId}`);
+            console.log(`Entry/Exit log saved for device ${deviceId} with distance: ${distance} km and price: ${price}`);
             res.status(200).json({ message: 'Geofence entry/exit event logged successfully' });
 
         } else {
