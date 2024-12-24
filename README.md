@@ -49,7 +49,7 @@ HighPay is a GPS distance based toll payment gateway, where user can pay toll pr
     ```
 
 4. Configure environment variables:
-    - Create a `.env` file in the backend directory with the following:
+   Create a `.env` file in the backend directory with the following:
       ```env
       MONGO_URI=your-mongodb-uri
       JWT_SECRET=your-secret-key
