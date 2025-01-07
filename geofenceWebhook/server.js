@@ -89,7 +89,10 @@ const latestEntries = {};
 // Endpoint to receive geofence notifications from Traccar
 app.post('/geofence', async (req, res) => {
     try {
-        const { event, position, device, geofence } = req.body;
+        const { event, position, device, geofence } = req.body || {};
+        if (!event || !position || !device || !geofence) {
+            return res.status(400).json({ message: 'Invalid payload structure' });
+        }
 
         const { type } = event;
         const { id: deviceId } = device;
